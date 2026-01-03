@@ -1,6 +1,7 @@
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
+import 'dotenv/config';
 
 const app = express();
 app.use(cors());
@@ -8,6 +9,7 @@ app.use(express.json());
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
+const ROLE_ID = process.env.ROLE_ID;
 
 const ROLE_PRIORITY = [
   { id: "1452854057906733257", name: "Founder" },
@@ -23,6 +25,43 @@ const ROLE_PRIORITY = [
   { id: "1452858679606116423", name: "Member" }
 ];
 
+// 1. ROTA: Rol Verme İşlemi() 
+app.post("/give-role", async (req, res) => {
+  const { userId } = req.body;
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID missing" });
+  }
+
+  try {
+    // Discord API'ye PUT isteği atarak rolü veriyoruz
+    const response = await fetch(
+      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+      {
+        method: "PUT",
+        headers: {
+          Authorization: `Bot ${BOT_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
+
+    // 204 No Content (Başarılı) / 200 OK dönerse
+    if (response.ok) {
+      console.log(`Rol verildi: ${userId}`);
+      return res.json({ success: true, message: "Role assigned" });
+    } else {
+      const errorText = await response.text();
+      console.error("Discord API Error (Give Role):", errorText);
+      return res.status(response.status).json({ error: errorText });
+    }
+  } catch (err) {
+    console.error("Sunucu Hatası:", err);
+    return res.status(500).json({ error: "Internal Server Error" });
+  }
+});
+
+// 2. ROTA: Kullanıcı Bilgisi
 app.post("/userinfo", async (req, res) => {
   try {
     const { access_token } = req.body;
@@ -31,6 +70,11 @@ app.post("/userinfo", async (req, res) => {
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${access_token}` }
     });
+    
+    if (!userRes.ok) {
+        throw new Error("Failed to fetch user from Discord");
+    }
+    
     const user = await userRes.json();
 
     // 2️⃣ Guild member (joined_at + roles)
@@ -42,6 +86,7 @@ app.post("/userinfo", async (req, res) => {
     );
 
     if (!memberRes.ok) {
+      // Kullanıcı sunucuda yoksa varsayılan dön
       return res.json({
         username: user.username,
         avatar: user.avatar,
@@ -55,11 +100,13 @@ app.post("/userinfo", async (req, res) => {
     // 3️⃣ Rol ayıklama (öncelik sırasına göre)
     let roleName = "Core Supporter";
 
-    for (const role of ROLE_PRIORITY) {
-      if (member.roles.includes(role.id)) {
-        roleName = role.name;
-        break;
-      }
+    if (member.roles) {
+        for (const role of ROLE_PRIORITY) {
+            if (member.roles.includes(role.id)) {
+                roleName = role.name;
+                break;
+            }
+        }
     }
 
     res.json({
@@ -79,4 +126,4 @@ app.post("/userinfo", async (req, res) => {
   }
 });
 
-app.listen(3000, () => console.log("Backend ready"));
+app.listen(3000, () => console.log("Backend ready on port 3000"));
