@@ -15,7 +15,7 @@ app.use(express.json());
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-const ASSIGN_ROLE_ID = process.env.ROLE_ID; 
+const ROLE_ID = process.env.ROLE_ID;
 
 const ROLE_PRIORITY = [
   { id: "1452854057906733257", name: "Founder" },
@@ -54,20 +54,20 @@ app.post("/give-role", async (req, res) => {
     const member = await memberRes.json();
 
     if (member.roles.includes(ROLE_ID)) {
-      console.log(`Kullanıcı ${userId} zaten role sahip.`);
-      return res.json({ success: true, alreadyHasRole: true, message: "User already has the role" });
-    }
+    console.log(`Kullanıcı ${userId} zaten role sahip.`);
+    return res.json({ success: true, alreadyHasRole: true, message: "User already has the role" });
+  }
 
     const assignRes = await fetch(
-      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bot ${BOT_TOKEN}`,
-          "Content-Type": "application/json"
-        }
+    `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bot ${BOT_TOKEN}`,
+        "Content-Type": "application/json"
       }
-    );
+    }
+  );
 
     if (assignRes.ok || assignRes.status === 204) {
       return res.json({ success: true, alreadyHasRole: false });
