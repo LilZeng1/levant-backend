@@ -25,7 +25,7 @@ const ROLE_PRIORITY = [
   { id: "1452857818909769768", name: "Event Lead" },
   { id: "1453136624220246183", name: "Levant Booster" },
   { id: "1456104633234886666", name: "Core Supporter" },
-  { id: "1453527525350178957", name: "Ascendant (VIP)" },
+  { id: "1453527525350178957", name: "Ascendant" },
   { id: "1452856702302158868", name: "Content Creator" },
   { id: "1452856780140052681", name: "Musician" },
   { id: "1452858679606116423", name: "Member" }
