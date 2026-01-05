@@ -1,3 +1,4 @@
+// Imports
 import express from "express";
 import fetch from "node-fetch";
 import cors from "cors";
@@ -5,7 +6,6 @@ import 'dotenv/config';
 
 const app = express();
 
-// CORS Ayarı: Her yerden gelen isteği kabul et (GitHub Pages için gerekli)
 app.use(cors({
     origin: "*", 
     methods: ["GET", "POST", "OPTIONS"]
@@ -15,10 +15,8 @@ app.use(express.json());
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-// ROLE_ID sadece "give-role" için kullanılıyor, userinfo'da tüm roller taranıyor.
 const ASSIGN_ROLE_ID = process.env.ROLE_ID; 
 
-// Bu ID'lerin sunucundaki GERÇEK ID'ler olduğundan emin ol.
 const ROLE_PRIORITY = [
   { id: "1452854057906733257", name: "Founder" },
   { id: "1452854589668982899", name: "Moderator" },
@@ -33,14 +31,35 @@ const ROLE_PRIORITY = [
   { id: "1452858679606116423", name: "Member" }
 ];
 
-// 1. ROTA: Rol Verme
 app.post("/give-role", async (req, res) => {
   const { userId } = req.body;
-  if (!userId) return res.status(400).json({ error: "User ID missing" });
+
+  if (!userId) {
+    return res.status(400).json({ error: "User ID missing" });
+  }
 
   try {
-    const response = await fetch(
-      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ASSIGN_ROLE_ID}`,
+    // Önce kullanıcının mevcut rollerini kontrol et
+    const memberRes = await fetch(
+      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}`,
+      {
+        headers: { Authorization: `Bot ${BOT_TOKEN}` }
+      }
+    );
+
+    if (!memberRes.ok) {
+      return res.status(404).json({ error: "User not found in server" });
+    }
+
+    const member = await memberRes.json();
+
+    if (member.roles.includes(ROLE_ID)) {
+      console.log(`Kullanıcı ${userId} zaten role sahip.`);
+      return res.json({ success: true, alreadyHasRole: true, message: "User already has the role" });
+    }
+
+    const assignRes = await fetch(
+      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
       {
         method: "PUT",
         headers: {
@@ -50,27 +69,24 @@ app.post("/give-role", async (req, res) => {
       }
     );
 
-    if (response.ok || response.status === 204) {
-      console.log(`Rol verildi: ${userId}`);
-      return res.json({ success: true });
+    if (assignRes.ok || assignRes.status === 204) {
+      return res.json({ success: true, alreadyHasRole: false });
     } else {
-      const errorText = await response.text();
-      console.error("Discord Error:", errorText);
-      return res.status(response.status).json({ error: errorText });
+      const errorText = await assignRes.text();
+      return res.status(assignRes.status).json({ error: errorText });
     }
+
   } catch (err) {
     console.error("Server Error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
 
-// 2. ROTA: Kullanıcı Bilgisi
 app.post("/userinfo", async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) return res.status(400).json({ error: "No token provided" });
 
-    // 1. Discord User Bilgisi
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${access_token}` }
     });
@@ -78,20 +94,17 @@ app.post("/userinfo", async (req, res) => {
     if (!userRes.ok) throw new Error("Invalid Token");
     const user = await userRes.json();
 
-    // 2. Sunucu Üyelik Bilgisi
     const memberRes = await fetch(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
       { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
     );
 
-    let roleName = "Member"; // Varsayılan rol
+    let roleName = "Member";
     let joinedAt = null;
 
     if (memberRes.ok) {
         const member = await memberRes.json();
         joinedAt = member.joined_at;
-
-        // Rol Öncelik Kontrolü
         if (member.roles) {
             for (const role of ROLE_PRIORITY) {
                 if (member.roles.includes(role.id)) {
@@ -101,13 +114,12 @@ app.post("/userinfo", async (req, res) => {
             }
         }
     } else {
-        // Kullanıcı sunucuda değilse ama giriş yaptıysa
         console.log("Kullanıcı sunucuda bulunamadı, varsayılan veri dönülüyor.");
     }
 
     res.json({
       username: user.username,
-      id: user.id, // ID'yi de ekledim frontend'de kopyalamak için
+      id: user.id,
       avatar: user.avatar,
       joinedAt: joinedAt,
       role: roleName
@@ -115,7 +127,6 @@ app.post("/userinfo", async (req, res) => {
 
   } catch (err) {
     console.error("Userinfo Hatası:", err);
-    // Hata olsa bile frontend patlamasın diye fallback veri dönüyoruz
     res.json({
       username: "Guest",
       id: "000000",
