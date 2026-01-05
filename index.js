@@ -4,13 +4,21 @@ import cors from "cors";
 import 'dotenv/config';
 
 const app = express();
-app.use(cors());
+
+// CORS Ayarı: Her yerden gelen isteği kabul et (GitHub Pages için gerekli)
+app.use(cors({
+    origin: "*", 
+    methods: ["GET", "POST", "OPTIONS"]
+}));
+
 app.use(express.json());
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const GUILD_ID = process.env.GUILD_ID;
-const ROLE_ID = process.env.ROLE_ID;
+// ROLE_ID sadece "give-role" için kullanılıyor, userinfo'da tüm roller taranıyor.
+const ASSIGN_ROLE_ID = process.env.ROLE_ID; 
 
+// Bu ID'lerin sunucundaki GERÇEK ID'ler olduğundan emin ol.
 const ROLE_PRIORITY = [
   { id: "1452854057906733257", name: "Founder" },
   { id: "1452854589668982899", name: "Moderator" },
@@ -25,18 +33,14 @@ const ROLE_PRIORITY = [
   { id: "1452858679606116423", name: "Member" }
 ];
 
-// 1. ROTA: Rol Verme İşlemi() 
+// 1. ROTA: Rol Verme
 app.post("/give-role", async (req, res) => {
   const { userId } = req.body;
-
-  if (!userId) {
-    return res.status(400).json({ error: "User ID missing" });
-  }
+  if (!userId) return res.status(400).json({ error: "User ID missing" });
 
   try {
-    // Discord API'ye PUT isteği atarak rolü veriyoruz
     const response = await fetch(
-      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ROLE_ID}`,
+      `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}/roles/${ASSIGN_ROLE_ID}`,
       {
         method: "PUT",
         headers: {
@@ -46,17 +50,16 @@ app.post("/give-role", async (req, res) => {
       }
     );
 
-    // 204 No Content (Başarılı) / 200 OK dönerse
-    if (response.ok) {
+    if (response.ok || response.status === 204) {
       console.log(`Rol verildi: ${userId}`);
-      return res.json({ success: true, message: "Role assigned" });
+      return res.json({ success: true });
     } else {
       const errorText = await response.text();
-      console.error("Discord API Error (Give Role):", errorText);
+      console.error("Discord Error:", errorText);
       return res.status(response.status).json({ error: errorText });
     }
   } catch (err) {
-    console.error("Sunucu Hatası:", err);
+    console.error("Server Error:", err);
     return res.status(500).json({ error: "Internal Server Error" });
   }
 });
@@ -65,65 +68,62 @@ app.post("/give-role", async (req, res) => {
 app.post("/userinfo", async (req, res) => {
   try {
     const { access_token } = req.body;
+    if (!access_token) return res.status(400).json({ error: "No token provided" });
 
-    // 1️⃣ Discord user
+    // 1. Discord User Bilgisi
     const userRes = await fetch("https://discord.com/api/users/@me", {
       headers: { Authorization: `Bearer ${access_token}` }
     });
     
-    if (!userRes.ok) {
-        throw new Error("Failed to fetch user from Discord");
-    }
-    
+    if (!userRes.ok) throw new Error("Invalid Token");
     const user = await userRes.json();
 
-    // 2️⃣ Guild member (joined_at + roles)
+    // 2. Sunucu Üyelik Bilgisi
     const memberRes = await fetch(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${user.id}`,
-      {
-        headers: { Authorization: `Bot ${BOT_TOKEN}` }
-      }
+      { headers: { Authorization: `Bot ${BOT_TOKEN}` } }
     );
 
-    if (!memberRes.ok) {
-      // Kullanıcı sunucuda yoksa varsayılan dön
-      return res.json({
-        username: user.username,
-        avatar: user.avatar,
-        joinedAt: null,
-        role: "Core Supporter"
-      });
-    }
+    let roleName = "Member"; // Varsayılan rol
+    let joinedAt = null;
 
-    const member = await memberRes.json();
+    if (memberRes.ok) {
+        const member = await memberRes.json();
+        joinedAt = member.joined_at;
 
-    // 3️⃣ Rol ayıklama (öncelik sırasına göre)
-    let roleName = "Core Supporter";
-
-    if (member.roles) {
-        for (const role of ROLE_PRIORITY) {
-            if (member.roles.includes(role.id)) {
-                roleName = role.name;
-                break;
+        // Rol Öncelik Kontrolü
+        if (member.roles) {
+            for (const role of ROLE_PRIORITY) {
+                if (member.roles.includes(role.id)) {
+                    roleName = role.name;
+                    break;
+                }
             }
         }
+    } else {
+        // Kullanıcı sunucuda değilse ama giriş yaptıysa
+        console.log("Kullanıcı sunucuda bulunamadı, varsayılan veri dönülüyor.");
     }
 
     res.json({
       username: user.username,
+      id: user.id, // ID'yi de ekledim frontend'de kopyalamak için
       avatar: user.avatar,
-      joinedAt: member.joined_at,
+      joinedAt: joinedAt,
       role: roleName
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Userinfo Hatası:", err);
+    // Hata olsa bile frontend patlamasın diye fallback veri dönüyoruz
     res.json({
-      username: "Unknown",
+      username: "Guest",
+      id: "000000",
       joinedAt: null,
-      role: "Core Supporter"
+      role: "Visitor"
     });
   }
 });
 
-app.listen(3000, () => console.log("Backend ready on port 3000"));
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => console.log(`Backend running on port ${PORT}`));
