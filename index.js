@@ -102,7 +102,7 @@ App.get('/server-stats', async (Req, Res) => {
             total: Data.approximate_member_count || 0
         });
     } catch (Err) {
-        Res.status(500).json({ Error: "Failed to fetch stats" });
+        Res.status(500).json({ error: "Failed to fetch stats" });
     }
 });
 
