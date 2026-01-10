@@ -39,7 +39,7 @@ app.post("/give-role", async (req, res) => {
   }
 
   try {
-    // Önce kullanıcının mevcut rollerini kontrol et
+    // Checking the member's already obtained roles
     const memberRes = await fetch(
       `https://discord.com/api/guilds/${GUILD_ID}/members/${userId}`,
       {
@@ -134,6 +134,39 @@ app.post("/userinfo", async (req, res) => {
       role: "Visitor"
     });
   }
+});
+
+// Get Server Status()
+app.get("/server-stats", async (req, res) => {
+    try {
+        const response = await fetch(`https://discord.com/api/guilds/${GUILD_ID}/widget.json`);
+        const data = await response.json();
+        
+        if (!data.members) {
+            return res.status(400).json({ error: "Enable Server Widget in Discord Settings!" });
+        }
+
+        const stats = {
+            total: data.presence_count,
+            online: data.members.filter(m => m.status === "online").length,
+            idle: data.members.filter(m => m.status === "idle").length,
+            dnd: data.members.filter(m => m.status === "dnd").length,
+            offline: 0
+        };
+        res.json(stats);
+    } catch (err) {
+        res.status(500).json({ error: "Stats fetch failed" });
+    }
+});
+
+// Getting the LeaderBoard()
+app.get("/leaderboard", (req, res) => {
+    const mockData = [
+        { rank: 1, name: "Zeng", msgs: 1542, voice: "42h", avatar: "https://placehold.co/40" },
+        { rank: 2, name: "Levant_Fan", msgs: 890, voice: "12h", avatar: "https://placehold.co/40" },
+        { rank: 3, name: "Shadow", msgs: 450, voice: "5h", avatar: "https://placehold.co/40" }
+    ];
+    res.json(mockData);
 });
 
 const PORT = process.env.PORT || 3000;
