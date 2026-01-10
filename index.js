@@ -14,7 +14,7 @@ App.use(express.json());
 
 /// Important Variables
 const Port = process.env.PORT || 3000;
-const BotToken = process.env.DISCORD_BOT_TOKEN;
+const BotToken = process.env.BOT_TOKEN;
 const GuildId = "1452829028267327511";
 const RoleId = "1456104633234886666";
 
