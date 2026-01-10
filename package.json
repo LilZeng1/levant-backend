@@ -9,6 +9,7 @@
     "express": "^4.19.2",
     "node-fetch": "^3.3.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.5"
+    "dotenv": "^16.4.5",
+    "mongoose": "^8.0.0"
   }
 }
