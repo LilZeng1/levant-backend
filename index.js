@@ -160,13 +160,17 @@ app.get("/server-stats", async (req, res) => {
 });
 
 // Getting the LeaderBoard()
-app.get("/leaderboard", (req, res) => {
-    const mockData = [
-        { rank: 1, name: "Zeng", msgs: 1542, voice: "42h", avatar: "https://placehold.co/40" },
-        { rank: 2, name: "Levant_Fan", msgs: 890, voice: "12h", avatar: "https://placehold.co/40" },
-        { rank: 3, name: "Shadow", msgs: 450, voice: "5h", avatar: "https://placehold.co/40" }
-    ];
-    res.json(mockData);
+app.get("/leaderboard", async (req, res) => {
+    try {
+        const mockData = [
+            { rank: 1, name: "Zeng", msgs: 1542, voice: "42h", avatar: "https://i.pravatar.cc/150?u=1" },
+            { rank: 2, name: "Kaptan", msgs: 1200, voice: "30h", avatar: "https://i.pravatar.cc/150?u=2" },
+            { rank: 3, name: "Shadow", msgs: 850, voice: "15h", avatar: "https://i.pravatar.cc/150?u=3" }
+        ];
+        res.json(mockData);
+    } catch (err) {
+        res.status(500).json({ error: "Leaderboard fetch failed" });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
