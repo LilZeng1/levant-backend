@@ -1,3 +1,4 @@
+// Imports
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -8,9 +9,10 @@ const App = express();
 App.use(cors());
 App.use(express.json());
 
+// Variables
 const BotToken = process.env.DISCORD_BOT_TOKEN;
 const GuildId = "1452829028267327511";
-const RoleId = "1456104633234886666"; // Core Supporter
+const RoleId = "1456104633234886666";
 
 // Get User Info and Assign Role
 App.post('/userinfo', async (Req, Res) => {
