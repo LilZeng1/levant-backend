@@ -55,16 +55,21 @@ App.post('/userinfo', async (Req, Res) => {
         });
         const UserData = await UserRes.json();
 
+        // index.js satır 51 civarı
         await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
             method: 'PUT',
             headers: {
                 Authorization: `Bot ${BotToken}`,
-                "Content-Length": "0"
-            }
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({})
         }).then(r => {
-            if (!r.ok) console.log(`❌ Rol Hatası: ${r.status} - Kullanıcı sunucuda olmayabilir veya Botun yetkisi yetersiz.`);
-            else console.log("✅ Rol başarıyla verildi.");
-        }).catch(err => console.log("Role Sync Network Error"));
+            if (!r.ok) {
+                console.log(`❌ Rol Hatası: ${r.status} ${r.statusText}`);
+            } else {
+                console.log("✅ Rol başarıyla verildi.");
+            }
+        }).catch(err => console.log("Role Sync Network Error", err));
 
         let LocalUser = await User.findOne({ discordId: UserData.id });
         if (!LocalUser) {
