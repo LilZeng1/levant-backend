@@ -55,7 +55,6 @@ App.post('/userinfo', async (Req, Res) => {
         });
         const UserData = await UserRes.json();
 
-        // index.js satır 51 civarı
         await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
             method: 'PUT',
             headers: {
