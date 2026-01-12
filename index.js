@@ -11,6 +11,7 @@ const App = express();
 App.use(cors({ origin: '*' }));
 App.use(express.json());
 
+// Important Variables
 const BotToken = process.env.BOT_TOKEN;
 const GuildId = process.env.GUILD_ID;
 const MongoUri = process.env.MONGO_URI;
@@ -28,11 +29,13 @@ const UserSchema = new mongoose.Schema({
 });
 const User = mongoose.model('User', UserSchema);
 
+// userInfo()
 App.post('/userinfo', async (Req, Res) => {
     const { code } = Req.body;
     if (!code) return Res.status(400).json({ Error: "No Code Provided" });
 
     try {
+        // 1. Token Al
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             body: new URLSearchParams({
@@ -46,20 +49,23 @@ App.post('/userinfo', async (Req, Res) => {
         });
 
         const tokenData = await tokenResponse.json();
-        if (tokenData.error) return Res.status(400).json({ Error: "Auth Failed" });
+        if (tokenData.error) return Res.status(400).json({ Error: "Auth Failed", details: tokenData.error });
 
         const UserRes = await fetch('https://discord.com/api/users/@me', {
             headers: { Authorization: `Bearer ${tokenData.access_token}` }
         });
         const UserData = await UserRes.json();
 
-        // Rol verme (Hata alsa bile login devam etsin diye try/catch içinde)
-        try {
-            await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
-                method: 'PUT',
-                headers: { Authorization: `Bot ${BotToken}` }
-            });
-        } catch (RoleErr) { console.log("Role Sync Failed"); }
+        fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
+            method: 'PUT',
+            headers: { 
+                Authorization: `Bot ${BotToken}`,
+                'Content-Type': 'application/json'
+            }
+        }).then(r => {
+            if (!r.ok) console.log(`❌ Rol Hatası: ${r.status} - Kullanıcı sunucuda olmayabilir veya Botun yetkisi yetersiz.`);
+            else console.log("✅ Rol başarıyla verildi.");
+        }).catch(err => console.log("Role Sync Network Error"));
 
         let LocalUser = await User.findOne({ discordId: UserData.id });
         if (!LocalUser) {
@@ -75,6 +81,7 @@ App.post('/userinfo', async (Req, Res) => {
         });
 
     } catch (Err) {
+        console.error(Err);
         Res.status(500).json({ Error: "Internal Server Error" });
     }
 });
