@@ -35,7 +35,6 @@ App.post('/userinfo', async (Req, Res) => {
     if (!code) return Res.status(400).json({ Error: "No Code Provided" });
 
     try {
-        // 1. Token Al
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
             method: 'POST',
             body: new URLSearchParams({
@@ -56,11 +55,11 @@ App.post('/userinfo', async (Req, Res) => {
         });
         const UserData = await UserRes.json();
 
-        fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
+        await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
             method: 'PUT',
-            headers: { 
+            headers: {
                 Authorization: `Bot ${BotToken}`,
-                'Content-Type': 'application/json'
+                "Content-Length": "0"
             }
         }).then(r => {
             if (!r.ok) console.log(`❌ Rol Hatası: ${r.status} - Kullanıcı sunucuda olmayabilir veya Botun yetkisi yetersiz.`);
