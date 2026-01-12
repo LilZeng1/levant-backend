@@ -55,20 +55,23 @@ App.post('/userinfo', async (Req, Res) => {
         });
         const UserData = await UserRes.json();
 
-        await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
-            method: 'PUT',
-            headers: {
-                Authorization: `Bot ${BotToken}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify({})
-        }).then(r => {
-            if (!r.ok) {
-                console.log(`❌ Rol Hatası: ${r.status} ${r.statusText}`);
-            } else {
-                console.log("✅ Rol başarıyla verildi.");
+        try {
+            const roleRes = await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
+                method: 'PUT',
+                headers: {
+                    Authorization: `Bot ${BotToken}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({})
+            });
+
+            if (!roleRes.ok) {
+                const errorText = await roleRes.text();
+                console.log(`⚠️ Rol verilemedi (Normal olabilir, örn: Owner): ${roleRes.status} - ${errorText}`);
             }
-        }).catch(err => console.log("Role Sync Network Error", err));
+        } catch (roleErr) {
+            console.error("Rol senkronizasyonunda ağ hatası:", roleErr);
+        }
 
         let LocalUser = await User.findOne({ discordId: UserData.id });
         if (!LocalUser) {
