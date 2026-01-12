@@ -1,3 +1,4 @@
+// Imports
 import express from 'express';
 import fetch from 'node-fetch';
 import cors from 'cors';
@@ -22,16 +23,14 @@ mongoose.connect(MongoUri)
 const UserSchema = new mongoose.Schema({
     discordId: String,
     username: String,
-    joinedAt: { type: Date, default: Date.now },
     level: { type: Number, default: 1 },
-    xp: { type: Number, default: 0 },
-    messageCount: { type: Number, default: 0 },
-    voiceMinutes: { type: Number, default: 0 }
+    xp: { type: Number, default: 0 }
 });
 const User = mongoose.model('User', UserSchema);
 
 App.post('/userinfo', async (Req, Res) => {
     const { code } = Req.body;
+    if (!code) return Res.status(400).json({ Error: "No Code Provided" });
 
     try {
         const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
@@ -54,11 +53,13 @@ App.post('/userinfo', async (Req, Res) => {
         });
         const UserData = await UserRes.json();
 
-        // Give Supporter Role & Sync Data
-        await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
-            method: 'PUT',
-            headers: { Authorization: `Bot ${BotToken}` }
-        });
+        // Rol verme (Hata alsa bile login devam etsin diye try/catch içinde)
+        try {
+            await fetch(`https://discord.com/api/guilds/${GuildId}/members/${UserData.id}/roles/${SupporterRole}`, {
+                method: 'PUT',
+                headers: { Authorization: `Bot ${BotToken}` }
+            });
+        } catch (RoleErr) { console.log("Role Sync Failed"); }
 
         let LocalUser = await User.findOne({ discordId: UserData.id });
         if (!LocalUser) {
@@ -70,19 +71,12 @@ App.post('/userinfo', async (Req, Res) => {
             ...UserData,
             access_token: tokenData.access_token,
             level: LocalUser.level,
-            xp: LocalUser.xp,
-            messages: LocalUser.messageCount,
-            voice: LocalUser.voiceMinutes
+            xp: LocalUser.xp
         });
 
     } catch (Err) {
-        Res.status(500).json({ Error: "Server Error" });
+        Res.status(500).json({ Error: "Internal Server Error" });
     }
-});
-
-App.get('/leaderboard', async (Req, Res) => {
-    const TopUsers = await User.find().sort({ xp: -1 }).limit(10);
-    Res.json(TopUsers);
 });
 
 const Port = process.env.PORT || 3000;
