@@ -11,6 +11,7 @@ require("dotenv").config();
 // CONFIGURATION
 const PORT = process.env.PORT || 3000;
 const CORE_SUPPORTER_ROLE_ID = "1456104633234886666"; 
+const CLIENT_SECRET = process.env.CLIENT_SECRET;
 const MAIN_GUILD_ID = process.env.MAIN_GUILD_ID;
 const BACKEND_URL = process.env.BACKEND_URL || "https://levant-backend.onrender.com";
 const FRONTEND_URL = "https://lilzeng1.github.io/Levant";
@@ -72,7 +73,6 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
             client_secret: process.env.ClientSecret,
             grant_type: 'authorization_code',
             code: code.toString(),
-            // BU URL, Discord Developer Portal'daki Redirect URI ile AYNI OLMALI
             redirect_uri: `${BACKEND_URL}/api/auth/discord/redirect`,
         });
 
