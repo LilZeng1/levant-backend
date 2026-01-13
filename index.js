@@ -48,7 +48,7 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 app.use(session({
-    secret: 'SuperSecretKeyLevant123',
+    secret: process.env.ClientSecret,
     resave: false,
     saveUninitialized: false,
     cookie: { 
