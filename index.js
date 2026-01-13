@@ -66,8 +66,8 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
 
     try {
         const formData = new url.URLSearchParams({
-            client_id: process.env.ClientID,
-            client_secret: process.env.ClientSecret, 
+            client_id: process.env.ClientID || 1454693732799611042,
+            client_secret: process.env.ClientSecret || process.env.CLIENT_SECRET,
             grant_type: 'authorization_code',
             code: code.toString(),
             redirect_uri: `https://levant-backend.onrender.com/api/auth/discord/redirect`,
