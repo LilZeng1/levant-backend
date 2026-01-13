@@ -70,7 +70,7 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
             client_secret: process.env.ClientSecret, 
             grant_type: 'authorization_code',
             code: code.toString(),
-            redirect_uri: `${BACKEND_URL}/api/auth/discord/redirect`,
+            redirect_uri: `https://levant-backend.onrender.com/api/auth/discord/redirect`,
         });
 
         const tokenResponse = await axios.post('https://discord.com/api/v10/oauth2/token',
