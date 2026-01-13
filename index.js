@@ -131,20 +131,20 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
     }
 });
 
-// UpdateNickName()
 app.post('/api/user/update-nick', async (req, res) => {
     const { userId, nickname } = req.body;
     try {
         const guild = client.guilds.cache.get(MAIN_GUILD_ID);
         const member = await guild.members.fetch(userId);
-        if (member) {
-            await member.setNickname(nickname);
-            return res.json({ success: true });
+        
+        if (!member.manageable) {
+            return res.status(403).json({ error: "Bot lacks permission to change this user's name." });
         }
-        res.status(404).send("Member not found");
+
+        await member.setNickname(nickname);
+        return res.json({ success: true });
     } catch (err) {
-        console.error(err);
-        res.status(500).send("Nickname update failed (Bot permissions?)");
+        res.status(500).json({ error: "Server error" });
     }
 });
 
