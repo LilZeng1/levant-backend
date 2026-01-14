@@ -3,7 +3,6 @@ const { Client, GatewayIntentBits, Partials } = require("discord.js");
 const mongoose = require("mongoose");
 const express = require("express");
 const axios = require("axios");
-const session = require("express-session");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const url = require("url");
@@ -15,15 +14,15 @@ const BACKEND_URL = process.env.BACKEND_URL || "https://levant-backend.onrender.
 const FRONTEND_URL = process.env.FRONTEND_URL || "https://lilzeng1.github.io/Levant";
 
 const LEVEL_ROLES = [
-    { level: 1,  xp: 0,     id: "1453526180950052896" }, 
-    { level: 5,  xp: 500,   id: "1453526492406616084" }, 
-    { level: 10, xp: 1500,  id: "1453526611688161453" }, 
-    { level: 20, xp: 3500,  id: "1453526743993553031" }, 
-    { level: 30, xp: 7500,  id: "1453526840722325617" }, 
-    { level: 40, xp: 15000, id: "1453526946486030336" }, 
-    { level: 50, xp: 30000, id: "1453527066342326342" }, 
-    { level: 75, xp: 60000, id: "1453527174219960422" }, 
-    { level: 100,xp: 100000,id: "1453527289089229021" }  
+    { level: 1,  xp: 0,      id: "1453526180950052896" },
+    { level: 5,  xp: 500,    id: "1453526492406616084" },
+    { level: 10, xp: 1500,   id: "1453526611688161453" },
+    { level: 20, xp: 3500,   id: "1453526743993553031" },
+    { level: 30, xp: 7500,   id: "1453526840722325617" },
+    { level: 40, xp: 15000,  id: "1453526946486030336" },
+    { level: 50, xp: 30000,  id: "1453527066342326342" },
+    { level: 75, xp: 60000,  id: "1453527174219960422" },
+    { level: 100,xp: 100000, id: "1453527289089229021" }
 ];
 
 const client = new Client({
@@ -49,14 +48,13 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.model("User", userSchema);
 
 const app = express();
-app.use(cors({ origin: ["https://lilzeng1.github.io", "http://127.0.0.1:5500"], methods: ['GET', 'POST'], credentials: true }));
+app.use(cors({ 
+    origin: ["https://lilzeng1.github.io", "http://127.0.0.1:5500", "http://localhost:5500"], 
+    methods: ['GET', 'POST'], 
+    credentials: true 
+}));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
-app.use(session({
-    secret: process.env.ClientSecret || "secret",
-    resave: false, saveUninitialized: false,
-    cookie: { secure: true, sameSite: 'none', maxAge: 60000 * 60 * 24 }
-}));
 
 const xpCooldowns = new Set();
 
@@ -85,13 +83,51 @@ client.on('messageCreate', async (message) => {
             if(member && nextLevel.id) {
                 await member.roles.add(nextLevel.id);
             }
-        } catch (e) { console.error("Rol hatası:", e); }
+        } catch (e) { console.error(e); }
     }
 
     await user.save();
-
     xpCooldowns.add(message.author.id);
     setTimeout(() => xpCooldowns.delete(message.author.id), 60000);
+});
+
+app.get('/api/members/leaderboard', async (req, res) => {
+    try {
+        const topUsers = await User.find().sort({ xp: -1 }).limit(20);
+        const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+        
+        const leaderboard = await Promise.all(topUsers.map(async (dbUser) => {
+            let username = "Unknown User";
+            let avatar = "https://cdn.discordapp.com/embed/avatars/0.png";
+            try {
+                let discordUser;
+                if (guild) {
+                    try {
+                        const member = await guild.members.fetch(dbUser._id);
+                        username = member.displayName;
+                        avatar = member.user.displayAvatarURL();
+                    } catch {
+                        discordUser = await client.users.fetch(dbUser._id);
+                        username = discordUser.username;
+                        avatar = discordUser.displayAvatarURL();
+                    }
+                } else {
+                    discordUser = await client.users.fetch(dbUser._id);
+                    username = discordUser.username;
+                    avatar = discordUser.displayAvatarURL();
+                }
+            } catch (e) { console.error(e); }
+            return {
+                id: dbUser._id,
+                username,
+                avatar,
+                level: dbUser.level,
+                xp: dbUser.xp
+            };
+        }));
+        
+        res.json(leaderboard);
+    } catch (e) { res.status(500).json({ error: "Leaderboard error" }); }
 });
 
 app.get('/api/auth/discord/redirect', async (req, res) => {
@@ -113,27 +149,24 @@ app.get('/api/auth/discord/redirect', async (req, res) => {
         const discordUser = userRes.data;
 
         let dbUser = await User.findById(discordUser.id);
-        
         let realJoinDate = new Date();
         try {
             const guild = client.guilds.cache.get(MAIN_GUILD_ID);
-            const member = await guild.members.fetch(discordUser.id);
-            if(member) realJoinDate = member.joinedAt;
-        } catch (e) { console.log("Member fetch error"); }
+            if (guild) {
+                const member = await guild.members.fetch(discordUser.id);
+                if(member) realJoinDate = member.joinedAt;
+            }
+        } catch (e) { console.log(e); }
 
         if (!dbUser) {
             dbUser = await User.create({ _id: discordUser.id, joinedAt: realJoinDate });
-        } else {
-            if(!dbUser.joinedAt) {
-                dbUser.joinedAt = realJoinDate;
-                await dbUser.save();
-            }
+        } else if(!dbUser.joinedAt) {
+            dbUser.joinedAt = realJoinDate;
+            await dbUser.save();
         }
 
         res.redirect(`${FRONTEND_URL}/html/dashboard.html?uid=${discordUser.id}&name=${encodeURIComponent(discordUser.username)}&avatar=${discordUser.avatar}`);
-
     } catch (error) {
-        console.error('Auth Error:', error);
         res.status(500).send('Login Error');
     }
 });
@@ -153,11 +186,17 @@ app.post('/api/user/update-nick', async (req, res) => {
     const { userId, nickname } = req.body;
     try {
         const guild = client.guilds.cache.get(MAIN_GUILD_ID);
+        if (!guild) return res.status(404).json({ error: "Guild not found" });
+        
         const member = await guild.members.fetch(userId);
-        if (!member.manageable) return res.status(403).json({ error: "Perms missing" });
+        if (member.id === guild.ownerId) return res.status(403).json({ error: "Cannot change Owner nickname" });
+        if (!member.manageable) return res.status(403).json({ error: "Bot role too low in hierarchy" });
+
         await member.setNickname(nickname);
         return res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: "Error" }); }
+    } catch (err) { 
+        res.status(500).json({ error: "Discord API Error" }); 
+    }
 });
 
 app.post('/api/danger/wipe', async (req, res) => {
